@@ -3,22 +3,23 @@ import matplotlib.pyplot as plt
 
 # Carica il dataset (modifica il percorso con quello corretto)
 df = pd.read_csv("datasets\AB_NYC_2019.csv")
+df = df[df["price"] < 1000]
 
-# Mostra le prime righe per verificare il caricamento
-interquart_range = df['price'].quantile(0.75) - df['price'].quantile(0.25)
-k = 10
-upper_bound = df['price'].quantile(0.75) + k*interquart_range
-lower_bound = df['price'].quantile(0.25) - k*interquart_range
+mean_prices = df.groupby("neighbourhood_group")["price"].mean()
+std_prices = df.groupby("neighbourhood_group")["price"].std()
 
-df_no_price_outlier = df[(df['price'] > lower_bound) & (df['price'] < upper_bound)]
-
-# Prezzo medio per quartiere
-avg_price_neighbourhood = df_no_price_outlier.groupby(["neighbourhood_group", "room_type"])["price"].mean().sort_values(ascending=False)
-
-# pivot table
-avg_price_pivot = df.pivot_table(values="price", index="neighbourhood_group", columns="room_type", aggfunc="mean")
-print(avg_price_pivot)
+high_prices = df.groupby("neighbourhood_group")["price"].quantile(0.75)
+low_prices = df.groupby("neighbourhood_group")["price"].quantile(0.25)
 
 
+is_cheap = df["price"] < df["neighbourhood_group"].map(low_prices)
+is_medium = (df["price"] > df["neighbourhood_group"].map(low_prices)) & (df["price"] < df["neighbourhood_group"].map(high_prices))
+is_high = df["price"] > df["neighbourhood_group"].map(high_prices)
 
+rank = 1*is_medium + 2*is_high
+df['rank'] = rank
 
+rank_to_words = {0: "cheap", 1: "medium", 2: "expensive"}
+rank_name = df["rank"].map(rank_to_words)
+
+print(rank_name)
