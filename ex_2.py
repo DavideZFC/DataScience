@@ -1,41 +1,37 @@
 import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
-import numpy as np
+from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
-from sklearn.linear_model import LogisticRegression, Ridge
-from sklearn.metrics import accuracy_score, classification_report, confusion_matrix, mean_absolute_error
-from sklearn.preprocessing import StandardScaler
-from statsmodels.stats.outliers_influence import variance_inflation_factor
+from sklearn.metrics import accuracy_score, confusion_matrix, roc_curve, auc, RocCurveDisplay
+import numpy as np
+import matplotlib.pyplot as plt
 
 # Carica il dataset
 df = pd.read_csv("datasets\AB_NYC_2019.csv")
 df = df[df["price"] < 1000]
 df = df.dropna()
 
-print(df.info())
+y = df["availability_365"] > df["availability_365"].quantile(0.5)
+X_raw = df[['minimum_nights','price','number_of_reviews']]
+X_raw["room_neigh"] = df["room_type"] + " | " + df["neighbourhood_group"]
 
-# predict price as function of other variables: is it useful to divide by neighbourhood?
+X_encoded = pd.get_dummies(X_raw, drop_first=True)
+print(X_encoded.head())
 
-y = df["price"]
-X = df[['neighbourhood_group', 'latitude', 'longitude', 'room_type', 'minimum_nights', 'availability_365']]
+X_train, X_test, y_train, y_test = train_test_split(X_encoded, y, test_size=0.2)
+print(y_train)
 
-X_encoded = pd.get_dummies(X, drop_first=True)
+model = LogisticRegression()
+model.fit(X_train, y_train)
 
-normalize = True
-if normalize:
-    X_encoded = (X_encoded - X_encoded.mean())/X_encoded.std()
-X_train, X_test, y_train, y_test = train_test_split(X_encoded, y, train_size=0.9, random_state=601)
+y_pred = model.predict(X_test)
+print(accuracy_score(y_test, y_pred))
+print(confusion_matrix(y_test, y_pred))
 
-alpha_list = 10.0**np.array([-10, 0, 1, 2, 3, 4])
-for alpha in alpha_list:
-    model = Ridge(alpha=alpha)
-    model.fit(X_train, np.log1p(y_train))
+y_proba = model.predict_proba(X_test)[:,1]
+fpr, tpr, thresholds = roc_curve(y_test, y_proba)
+roc_auc = auc(fpr, tpr)
+display = RocCurveDisplay(fpr=fpr, tpr=tpr, roc_auc=roc_auc,
+                                  estimator_name='example estimator')
 
-    y_pred = model.predict(X_test)
-    err = mean_absolute_error(y_test, np.expm1(y_pred))
-
-    print("error for alpha = {} is {}".format(alpha, err))
-
-plt.hist(np.log1p(df['price']))
+display.plot()
 plt.show()
