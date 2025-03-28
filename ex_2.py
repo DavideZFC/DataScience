@@ -6,38 +6,72 @@ from sklearn.preprocessing import RobustScaler
 import numpy as np
 import matplotlib.pyplot as plt
 from statsmodels.stats.outliers_influence import variance_inflation_factor
+from sklearn.tree import DecisionTreeRegressor, plot_tree
+from sklearn.ensemble import RandomForestRegressor
+import matplotlib.pyplot as plt
+import xgboost as xgb
 
 # Carica il dataset
 df = pd.read_csv("datasets\AB_NYC_2019.csv")
 df = df[df["price"] < 1000]
 df = df.dropna()
 
-y = np.log1p(df['number_of_reviews'])
-numerical = ['latitude', 'longitude', 'price', 'minimum_nights']
-categoric = ['neighbourhood_group', 'room_type']
+print(df.info())
 
-scaler = RobustScaler()
-df_predict = pd.DataFrame(scaler.fit_transform(df[numerical]), columns=numerical, index=df.index)
+df_regressor = df[['neighbourhood_group', 'latitude', 'longitude', 'room_type', 'number_of_reviews']]
+X_encoded = pd.get_dummies(df_regressor)
 
-df_predict = pd.concat([df_predict, df[categoric]], axis=1)
+y = df["price"]
 
-X_encoded = pd.get_dummies(df_predict, drop_first=True)
-X_encoded['intercity'] = X_encoded['price']*X_encoded['neighbourhood_group_Brooklyn']
-X_train, X_test, y_train, y_test = train_test_split(X_encoded, y, train_size=0.2)
+X_train, X_test, y_train, y_test = train_test_split(X_encoded, y)
 
-model = ElasticNet(alpha=0.001, l1_ratio=0.5)
-model.fit(X_train, y_train)
-y_pred = model.predict(X_test)
+max_depths = 2+2*np.arange(5)
+rmses = []
+models = []
+for m in max_depths:
+    model = DecisionTreeRegressor(max_depth=m)
+    model.fit(X_train, y_train)
+    models.append(model)
 
-coef_df = pd.Series(model.coef_, index=X_encoded.columns)
+    y_pred = model.predict(X_test)
+    rmses.append(mean_squared_error(y_test, y_pred)**0.5)
 
-print(coef_df)
-print(mean_squared_error(y_test, y_pred)**0.5)
-print(r2_score(y_test, y_pred))
+rmses_forest = []
+models_forest = []
+for m in max_depths:
+    model = RandomForestRegressor(n_estimators=100, criterion='squared_error', max_depth=m)
+    model.fit(X_train, y_train)
+    models_forest.append(model)
 
-vif_data = pd.DataFrame()
-vif_data["feature"] = df_predict[numerical].columns
-vif_data["VIF"] = [variance_inflation_factor(df_predict[numerical].values, i)
-                   for i in range(df[numerical].shape[1])]
+    y_pred = model.predict(X_test)
+    rmses_forest.append(mean_squared_error(y_test, y_pred)**0.5)
 
-print(vif_data.sort_values("VIF", ascending=False))
+
+rmses_xgb = []
+models_xgb = []
+for m in max_depths:
+    model = reg = xgb.XGBRegressor(tree_method="hist", max_depth=m, eval_metric='rmse')
+    model.fit(X_train, y_train)
+    models_xgb.append(model)
+
+    y_pred = model.predict(X_test)
+    rmses_xgb.append(mean_squared_error(y_test, y_pred)**0.5)
+
+
+
+plt.plot(max_depths, rmses, label='trees')
+plt.plot(max_depths, rmses_forest, label='forest')
+plt.plot(max_depths, rmses_xgb, label='xgb')
+plt.legend()
+plt.show()
+
+importances = models_forest[0].feature_importances_
+sorted_idx = np.argsort(importances)
+
+plt.figure(figsize=(10, 6))
+plt.barh(range(len(importances)), importances[sorted_idx], align='center')
+plt.yticks(range(len(importances)), np.array(X_encoded.columns)[sorted_idx])
+plt.title("Feature Importances - Random Forest")
+plt.xlabel("Importance")
+plt.tight_layout()
+plt.show()
