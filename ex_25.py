@@ -6,10 +6,11 @@ from sklearn.discriminant_analysis import QuadraticDiscriminantAnalysis
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.neighbors import KNeighborsClassifier
+from sklearn.svm import SVC
 import xgboost as xgb
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
-
+import time
 
 data = pd.read_csv('datasets\AB_NYC_2019.csv')
 print(data.info())
@@ -26,69 +27,41 @@ X_train, X_test, y_train, y_test = train_test_split(data[['latitude', 'longitude
 plt.scatter(X_test['latitude'], X_test['longitude'], color=y_test.map(color_map), s=0.2)
 plt.show()
 
-# LDA
-lda = LinearDiscriminantAnalysis()
-lda.fit(X_train, y_train)
-y_pred = lda.predict(X_test)
+# SVM
+n = X_train.shape[0]
+print(X_train.std()*n)
+m = 10
+i = 1
+n_samp = int((i+1)*n/m)
+
+start = time.time()
+svm = SVC(C=1000, gamma=1000)
+svm.fit(X_train.iloc[:n_samp,:], y_train[:n_samp])
+y_pred = svm.predict(X_test)
+print('n samples', n_samp)
+
+print("SVM time ", time.time()-start)
+
+print("SVM accuracy", accuracy_score(y_test, y_pred))
 
 plt.scatter(X_test['latitude'], X_test['longitude'], color=pd.Series(y_pred).map(color_map), s=0.2)
 plt.show()
 
-print("LDA accuracy", accuracy_score(y_test, y_pred))
-
-# QDA
-qda = QuadraticDiscriminantAnalysis()
-qda.fit(X_train, y_train)
-y_pred = qda.predict(X_test)
-
-plt.scatter(X_test['latitude'], X_test['longitude'], color=pd.Series(y_pred).map(color_map), s=0.2)
-plt.show()
-
-print("QDA accuracy", accuracy_score(y_test, y_pred))
-
-# Logistic Regression
-log = LogisticRegression()
-log.fit(X_train, y_train)
-y_pred = log.predict(X_test)
-
-plt.scatter(X_test['latitude'], X_test['longitude'], color=pd.Series(y_pred).map(color_map), s=0.2)
-plt.show()
-
-print("Logistic accuracy", accuracy_score(y_test, y_pred))
-
-# Random forest
-rf = RandomForestClassifier(n_estimators=20, max_depth=5)
-rf.fit(X_train, y_train)
-y_pred = rf.predict(X_test)
-
-plt.scatter(X_test['latitude'], X_test['longitude'], color=pd.Series(y_pred).map(color_map), s=0.2)
-plt.show()
-
-print("RF accuracy", accuracy_score(y_test, y_pred))
-
+'''
 # XGBoost
+start = time.time()
 xgboost = xgb.XGBClassifier(tree_method="hist", max_depth=5, eval_metric='rmse')
 label_map = {'Entire home/apt': 0, 'Private room': 1}
 reverse_label_map = {0: 'Entire home/apt', 1: 'Private room'}
 xgboost.fit(X_train, y_train.map(label_map))
 y_pred = xgboost.predict(X_test)
 y_pred = pd.Series(y_pred).map(reverse_label_map)
+print("XGB time ", time.time()-start)
 
 plt.scatter(X_test['latitude'], X_test['longitude'], color=pd.Series(y_pred).map(color_map), s=0.2)
 plt.show()
 
 print("XGB accuracy", accuracy_score(y_test, y_pred))
-
-# KNN
-
-knn = KNeighborsClassifier(n_neighbors=15, n_jobs=-1)  # puoi provare anche 5, 10, 20
-knn.fit(X_train, y_train)
-y_pred = knn.predict(X_test)
-
-plt.scatter(X_test['latitude'], X_test['longitude'], color=pd.Series(y_pred).map(color_map), s=0.2)
-plt.show()
-
-print("KNN accuracy:", accuracy_score(y_test, y_pred))
-
+'''
 
 
