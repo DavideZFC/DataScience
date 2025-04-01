@@ -35,7 +35,7 @@ i = 1
 n_samp = int((i+1)*n/m)
 
 start = time.time()
-svm = SVC(C=1000, gamma=1000)
+svm = SVC(C=1, gamma=1000)
 svm.fit(X_train.iloc[:n_samp,:], y_train[:n_samp])
 y_pred = svm.predict(X_test)
 print('n samples', n_samp)
