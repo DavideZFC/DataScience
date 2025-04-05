@@ -4,6 +4,7 @@ from sklearn.linear_model import ElasticNet, LogisticRegression
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error, r2_score, accuracy_score, confusion_matrix, roc_curve, auc, RocCurveDisplay
 import matplotlib.pyplot as plt
+from sklearn.decomposition import PCA
 
 
 def sigmoid(x):
@@ -29,6 +30,11 @@ y_norm = sigmoid(y)
 y_rand = np.random.binomial(1, y_norm)
 
 X_train, X_test, y_train, y_test = train_test_split(data, y_rand, train_size=0.9)
+
+pca = PCA()
+transform_df = pca.fit_transform(X_train)
+plt.plot(pca.explained_variance_ratio_)
+plt.show()
 
 model = LogisticRegression(penalty='elasticnet', C=0.01, solver='saga', l1_ratio=0.01)
 model.fit(X_train, y_train)
